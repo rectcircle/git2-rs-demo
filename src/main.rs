@@ -429,7 +429,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // rm -rf test_repo && mkdir -p test_repo && cd test_repo
     let test_dir = "test_repo";
-    fs::remove_dir_all(test_dir)?;
+    if Path::new(test_dir).exists() {
+        fs::remove_dir_all(test_dir)?;
+    }
 
     // git init
     let mut repo = open_or_init_git_repo(test_dir)?;
