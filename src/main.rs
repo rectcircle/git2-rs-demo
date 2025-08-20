@@ -213,10 +213,17 @@ fn switch_git_repo_branch<'a>(
     // 查找分支引用
     let branch_ref_name = format!("refs/heads/{}", branch_name);
     // 检查分支是否存在
-    _ = repo.find_reference(&branch_ref_name)?;
+    let branch_ref = repo.find_reference(&branch_ref_name)?;
 
     // 设置 HEAD 指向目标分支
     repo.set_head(&branch_ref_name)?;
+
+    // 重置索引到目标 tree
+    let mut index = repo.index()?;
+    let commit_id = branch_ref.resolve()?.target().unwrap();
+    let target_tree = repo.find_commit(commit_id)?.tree()?;
+    index.read_tree(&target_tree)?;
+    index.write()?;
 
     if update_workdir {
         // 如果需要更新工作目录，则进行 checkout 操作
