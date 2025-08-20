@@ -195,7 +195,7 @@ fn upsert_branch_to_git_repo<'a>(
     }
 
     // 创建新的分支
-    repo.branch(branch_name, &target_commit, false)?;
+    repo.branch(branch_name, &target_commit, true)?;
 
     println!("upsert 分支: {} -> {}", branch_name, target_commit.id());
 
@@ -254,19 +254,24 @@ fn reset_git_repo_head(
     
     // 获取目标 commit 的 tree
     let target_tree = target_commit.tree()?;
-    
-    // 1. 重置 HEAD 到目标 commit
+
     // 获取当前分支引用
     let head_ref = repo.head()?;
-    if let Some(branch_name) = head_ref.shorthand() {
-        // 如果 HEAD 指向一个分支，更新该分支的引用
-        let branch_ref_name = format!("refs/heads/{}", branch_name);
-        repo.reference(&branch_ref_name, target_commit_oid, true, "reset HEAD")?;
-    } else {
-        // 如果 HEAD 处于 detached 状态，直接设置 HEAD
-        repo.set_head_detached(target_commit_oid)?;
-    }
+
     
+    // 1. 重置 HEAD 到目标 commit
+    match head_ref.kind() {
+        Some(git2::ReferenceType::Symbolic) => {
+            let branch_name = head_ref.name().unwrap();
+            repo
+            .reference(&branch_name, target_commit_oid, true, format!("reset HEAD to {}", target_commit_oid).as_str())?;
+        },
+        Some(git2::ReferenceType::Direct) | None => {
+            repo
+            .set_head_detached(target_commit_oid)?;
+        },
+    }
+
     // 2. 重置索引到目标 tree
     let mut index = repo.index()?;
     index.read_tree(&target_tree)?;
